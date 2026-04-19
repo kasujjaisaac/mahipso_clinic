@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('audit_logs', function (Blueprint $table) {
+            $table->string('module')->nullable()->after('action');
+            $table->string('url')->nullable()->after('module');
+            $table->string('method')->nullable()->after('url');
+            $table->text('user_agent')->nullable()->after('method');
+            $table->string('session_id')->nullable()->after('user_agent');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('audit_logs', function (Blueprint $table) {
+            $table->dropColumn(['module', 'url', 'method', 'user_agent', 'session_id']);
+        });
+    }
+};
