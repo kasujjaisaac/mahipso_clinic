@@ -21,6 +21,8 @@ class MedicalRecordController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', MedicalRecord::class);
+
         $user = $this->currentUser();
         $branchId = $this->branchFilterId($request);
 
@@ -41,6 +43,8 @@ class MedicalRecordController extends Controller
 
     public function create()
     {
+        $this->authorize('create', MedicalRecord::class);
+
         $branchId = $this->selectedBranchId(request());
         $visits = Visit::where('branch_id', $branchId)->where('status','open')->get();
         $patients = Patient::where('branch_id', $branchId)->get();
@@ -51,6 +55,8 @@ class MedicalRecordController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', MedicalRecord::class);
+
         $validated = $request->validate([
             'visit_id' => 'required|exists:visits,id',
             'patient_id' => 'nullable|exists:patients,id',

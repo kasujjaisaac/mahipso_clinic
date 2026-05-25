@@ -22,6 +22,8 @@ class VisitController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Visit::class);
+
         $user = $this->currentUser();
         $branchId = $this->branchFilterId($request);
 
@@ -42,6 +44,8 @@ class VisitController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Visit::class);
+
         $branchId = $this->selectedBranchId(request());
         $patients = Patient::where('branch_id', $branchId)->orderBy('last_name')->get();
         $providers = User::role(['doctor', 'nurse'])->where('branch_id', $branchId)->get();
@@ -52,6 +56,8 @@ class VisitController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', Visit::class);
+
         $validated = $request->validate([
             'patient_id' => 'required|exists:patients,id',
             'appointment_id' => 'nullable|exists:appointments,id',
@@ -80,6 +86,9 @@ class VisitController extends Controller
         }
 
         $validated['branch_id'] = $patient->branch_id;
+        $validated['workflow_stage'] = Visit::STAGE_CHECKED_IN;
+        $validated['checked_in_at'] = now();
+
         Visit::create($validated);
 
         return redirect()->route('visits.index')->with('success', 'Visit created.');
@@ -88,7 +97,7 @@ class VisitController extends Controller
     public function show(Visit $visit)
     {
         $this->authorize('view', $visit);
-        $visit->load(['medicalRecords', 'patient', 'provider']);
+        $visit->load(['medicalRecords', 'patient', 'provider', 'admission']);
 
         $pharmacyForVisit = Pharmacy::where('branch_id', $visit->branch_id)->first();
 

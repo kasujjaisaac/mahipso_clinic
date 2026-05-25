@@ -4,17 +4,49 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use App\Helpers\BrowserHelper;
+use DateTimeInterface;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
 class AuditLogService
 {
+    private static function currentBranchId(): ?int
+    {
+        return auth()->check() ? auth()->user()->branch_id : null;
+    }
+
     /**
      * Get user agent information
      */
     private static function parseUserAgent(string $userAgent): array
     {
         return BrowserHelper::parseUserAgent($userAgent);
+    }
+
+    private static function parseLoginTime(mixed $loginTime): ?Carbon
+    {
+        if ($loginTime instanceof Carbon) {
+            return $loginTime;
+        }
+
+        if ($loginTime instanceof DateTimeInterface) {
+            return Carbon::instance($loginTime);
+        }
+
+        if (is_numeric($loginTime)) {
+            return Carbon::createFromTimestamp((int) $loginTime);
+        }
+
+        if (is_string($loginTime) && trim($loginTime) !== '') {
+            try {
+                return Carbon::parse($loginTime);
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -26,6 +58,7 @@ class AuditLogService
 
         AuditLog::create([
             'user_id' => auth()->id(),
+            'branch_id' => self::currentBranchId(),
             'action' => $action,
             'action_type' => 'access',
             'module' => $module,
@@ -54,11 +87,12 @@ class AuditLogService
 
         // Store login time in cache for later use during logout
         if ($success && auth()->check()) {
-            Cache::put("login_time_{$sessionId}", now(), now()->addHours(24));
+            Cache::put("login_time_{$sessionId}", now()->toIso8601String(), now()->addHours(24));
         }
 
         AuditLog::create([
             'user_id' => $userId,
+            'branch_id' => $success && auth()->check() ? auth()->user()->branch_id : null,
             'action' => 'login',
             'action_type' => 'login',
             'module' => 'authentication',
@@ -90,13 +124,16 @@ class AuditLogService
         $userId = auth()->id();
 
         // Calculate session duration
-        $loginTime = Cache::get("login_time_{$sessionId}");
+        $loginTimeCacheKey = "login_time_{$sessionId}";
+        $loginTime = self::parseLoginTime(Cache::get($loginTimeCacheKey));
         $sessionDurationMinutes = null;
 
         if ($loginTime) {
             $sessionDurationMinutes = $loginTime->diffInMinutes(now());
-            Cache::forget("login_time_{$sessionId}");
+            Cache::forget($loginTimeCacheKey);
         } else {
+            Cache::forget($loginTimeCacheKey);
+
             // If login time not in cache, try to find the most recent login
             $lastLogin = AuditLog::where('user_id', $userId)
                 ->where('action_type', 'login')
@@ -111,6 +148,7 @@ class AuditLogService
 
         AuditLog::create([
             'user_id' => $userId,
+            'branch_id' => self::currentBranchId(),
             'action' => 'logout',
             'action_type' => 'logout',
             'module' => 'authentication',
@@ -150,6 +188,7 @@ class AuditLogService
 
         AuditLog::create([
             'user_id' => auth()->id(),
+            'branch_id' => self::currentBranchId(),
             'action' => $actionType,
             'action_type' => $actionType,
             'module' => null,
@@ -207,6 +246,7 @@ class AuditLogService
 
         AuditLog::create([
             'user_id' => null,
+            'branch_id' => null,
             'action' => 'failed_login_attempt',
             'action_type' => 'login',
             'module' => 'authentication',
@@ -232,6 +272,7 @@ class AuditLogService
     {
         AuditLog::create([
             'user_id' => auth()->id(),
+            'branch_id' => self::currentBranchId(),
             'action' => 'suspicious_activity',
             'action_type' => 'access',
             'module' => 'security',
@@ -258,6 +299,7 @@ class AuditLogService
 
         AuditLog::create([
             'user_id' => auth()->id(),
+            'branch_id' => self::currentBranchId(),
             'action' => $actionType,
             'action_type' => 'update',
             'module' => 'admin',

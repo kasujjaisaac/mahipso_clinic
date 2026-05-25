@@ -7,6 +7,16 @@ use App\Models\Partner;
 
 class PartnerController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware(function ($request, $next) {
+            abort_unless($request->user()->canAccessModule('programs'), 403);
+
+            return $next($request);
+        });
+    }
+
     public function index()
     {
         $partners = Partner::latest()->paginate(20);

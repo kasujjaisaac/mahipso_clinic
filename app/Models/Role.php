@@ -2,20 +2,37 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Models\Role as SpatieRole;
 
-class Role extends Model
+class Role extends SpatieRole
 {
-    use HasFactory;
-
     protected $fillable = [
         'name',
+        'guard_name',
         'description',
+        'module_access',
     ];
 
-    public function users()
+    protected $casts = [
+        'module_access' => 'array',
+    ];
+
+    public function allowedModules(): array
     {
-        return $this->belongsToMany(User::class);
+        if (is_array($this->module_access)) {
+            return $this->module_access;
+        }
+
+        return self::defaultModulesFor($this->name);
+    }
+
+    public static function defaultModulesFor(string $roleName): array
+    {
+        return config("clinic_modules.default_access.{$roleName}", []);
+    }
+
+    public static function moduleOptions(): array
+    {
+        return config('clinic_modules.modules', []);
     }
 }

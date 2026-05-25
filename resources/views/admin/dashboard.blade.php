@@ -248,6 +248,129 @@
     <div class="panel">
         <div class="panel-header">
             <div>
+                <h2 class="section-title">Today's operations</h2>
+                <p class="subtle">Live queue pressure, patient movement, and same-day service activity.</p>
+            </div>
+        </div>
+        <div class="stats-grid">
+            <div class="metric-card" style="--accent: #2f6fed;"><div class="metric-icon">IN</div><div><div class="metric-value">{{ $appointmentsToday }}</div><div class="metric-label">Appointments today</div></div></div>
+            <div class="metric-card" style="--accent: #b8342b;"><div class="metric-icon">Q</div><div><div class="metric-value">{{ $openVisitsCount }}</div><div class="metric-label">Open visits</div></div></div>
+            <div class="metric-card" style="--accent: #c87b16;"><div class="metric-icon">V</div><div><div class="metric-value">{{ $todayVisitsCount }}</div><div class="metric-label">Visits today</div></div></div>
+            <div class="metric-card" style="--accent: #2f7d57;"><div class="metric-icon">OK</div><div><div class="metric-value">{{ $completedVisitsToday }}</div><div class="metric-label">Completed today</div></div></div>
+            <div class="metric-card" style="--accent: #5f5fd9;"><div class="metric-icon">7D</div><div><div class="metric-value">{{ $appointmentsNext7Days }}</div><div class="metric-label">Appointments next 7 days</div></div></div>
+        </div>
+        <div class="chart-grid" style="margin-top: 1rem;">
+            <div class="chart-container">
+                <h3>Patient queue by stage</h3>
+                <div class="chart-wrapper"><canvas id="queueStageChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <h3>Branch workload</h3>
+                <div class="chart-wrapper"><canvas id="branchWorkloadChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <div>
+                <h2 class="section-title">Inpatient command center</h2>
+                <p class="subtle">Admissions, discharge readiness, clearance blockers, and bed occupancy.</p>
+            </div>
+        </div>
+        <div class="stats-grid">
+            <div class="metric-card" style="--accent: #b8342b;"><div class="metric-icon">IP</div><div><div class="metric-value">{{ $activeAdmissionsCount }}</div><div class="metric-label">Active admissions</div></div></div>
+            <div class="metric-card" style="--accent: #2f6fed;"><div class="metric-icon">AD</div><div><div class="metric-value">{{ $admissionsToday }}</div><div class="metric-label">Admissions today</div></div></div>
+            <div class="metric-card" style="--accent: #2f7d57;"><div class="metric-icon">DC</div><div><div class="metric-value">{{ $dischargesToday }}</div><div class="metric-label">Discharges today</div></div></div>
+            <div class="metric-card" style="--accent: #c87b16;"><div class="metric-icon">RD</div><div><div class="metric-value">{{ $readyForDischarge }}</div><div class="metric-label">Ready for discharge</div></div></div>
+            <div class="metric-card" style="--accent: #ef4444;"><div class="metric-icon">!</div><div><div class="metric-value">{{ $pendingDischargeClearance }}</div><div class="metric-label">Pending clearance</div></div></div>
+            <div class="metric-card" style="--accent: #7c3aed;"><div class="metric-icon">%</div><div><div class="metric-value">{{ $bedOccupancyRate }}%</div><div class="metric-label">Bed occupancy</div></div></div>
+        </div>
+        <div class="progress-row">
+            <div>
+                <div class="progress-label"><span>Bed occupancy progress</span><strong>{{ $occupiedBeds }} / {{ $totalBeds }} beds</strong></div>
+                <div class="progress-track"><div class="progress-fill" style="width: {{ min($bedOccupancyRate, 100) }}%;"></div></div>
+            </div>
+        </div>
+        <div class="chart-grid" style="margin-top: 1rem;">
+            <div class="chart-container"><h3>Bed status</h3><div class="chart-wrapper"><canvas id="bedStatusChart"></canvas></div></div>
+            <div class="chart-container"><h3>Admissions by ward</h3><div class="chart-wrapper"><canvas id="admissionsByWardChart"></canvas></div></div>
+            <div class="chart-container"><h3>Admissions vs discharges</h3><div class="chart-wrapper"><canvas id="admissionFlowChart"></canvas></div></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <div>
+                <h2 class="section-title">Clinical workload</h2>
+                <p class="subtle">Lab, prescription, and pharmacy stock alerts requiring operational attention.</p>
+            </div>
+        </div>
+        <div class="stats-grid">
+            <div class="metric-card" style="--accent: #204e8d;"><div class="metric-icon">LB</div><div><div class="metric-value">{{ $pendingLabTests }}</div><div class="metric-label">Pending lab tests</div></div></div>
+            <div class="metric-card" style="--accent: #2f7d57;"><div class="metric-icon">LR</div><div><div class="metric-value">{{ $completedLabTestsToday }}</div><div class="metric-label">Lab results today</div></div></div>
+            <div class="metric-card" style="--accent: #8b5cf6;"><div class="metric-icon">RX</div><div><div class="metric-value">{{ $pendingPrescriptions }}</div><div class="metric-label">Pending prescriptions</div></div></div>
+            <div class="metric-card" style="--accent: #2f7d57;"><div class="metric-icon">DS</div><div><div class="metric-value">{{ $dispensedToday }}</div><div class="metric-label">Dispensed today</div></div></div>
+            <div class="metric-card" style="--accent: #f59e42;"><div class="metric-icon">LS</div><div><div class="metric-value">{{ $lowStockProducts }}</div><div class="metric-label">Low stock items</div></div></div>
+            <div class="metric-card" style="--accent: #ef4444;"><div class="metric-icon">OS</div><div><div class="metric-value">{{ $outOfStockProducts }}</div><div class="metric-label">Out of stock</div></div></div>
+            <div class="metric-card" style="--accent: #c87b16;"><div class="metric-icon">EX</div><div><div class="metric-value">{{ $expiringProducts }}</div><div class="metric-label">Expiring soon</div></div></div>
+        </div>
+        <div class="chart-grid" style="margin-top: 1rem;">
+            <div class="chart-container"><h3>Lab status</h3><div class="chart-wrapper"><canvas id="labStatusChart"></canvas></div></div>
+            <div class="chart-container"><h3>Top lab tests</h3><div class="chart-wrapper"><canvas id="topLabTestsChart"></canvas></div></div>
+            <div class="chart-container"><h3>Prescription status</h3><div class="chart-wrapper"><canvas id="prescriptionStatusChart"></canvas></div></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <div>
+                <h2 class="section-title">Revenue cycle and collections</h2>
+                <p class="subtle">Bill status, discharge blockers, and aging outstanding balances.</p>
+            </div>
+        </div>
+        <div class="stats-grid">
+            <div class="metric-card" style="--accent: #ef4444;"><div class="metric-icon">UB</div><div><div class="metric-value">{{ $billStatusCounts->get('unpaid', 0) }}</div><div class="metric-label">Unpaid bills</div></div></div>
+            <div class="metric-card" style="--accent: #f59e42;"><div class="metric-icon">PB</div><div><div class="metric-value">{{ $billStatusCounts->get('partial', 0) }}</div><div class="metric-label">Partial bills</div></div></div>
+            <div class="metric-card" style="--accent: #22c55e;"><div class="metric-icon">PD</div><div><div class="metric-value">{{ $billStatusCounts->get('paid', 0) }}</div><div class="metric-label">Paid bills</div></div></div>
+            <div class="metric-card" style="--accent: #b8342b;"><div class="metric-icon">DC</div><div><div class="metric-value">{{ $billingBlockedDischarges }}</div><div class="metric-label">Discharges blocked by billing</div></div></div>
+        </div>
+        <div class="chart-grid" style="margin-top: 1rem;">
+            <div class="chart-container"><h3>Bill status</h3><div class="chart-wrapper"><canvas id="billStatusChart"></canvas></div></div>
+            <div class="chart-container"><h3>Outstanding aging</h3><div class="chart-wrapper"><canvas id="agingChart"></canvas></div></div>
+            <div class="chart-container"><h3>Revenue by branch</h3><div class="chart-wrapper"><canvas id="branchRevenueChart"></canvas></div></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <div>
+                <h2 class="section-title">Staff and procurement</h2>
+                <p class="subtle">People operations, payroll readiness, requisitions, and purchase order flow.</p>
+            </div>
+        </div>
+        <div class="stats-grid">
+            <div class="metric-card" style="--accent: #2f7d57;"><div class="metric-icon">ST</div><div><div class="metric-value">{{ $activeStaffCount }}</div><div class="metric-label">Active staff</div></div></div>
+            <div class="metric-card" style="--accent: #c87b16;"><div class="metric-icon">LV</div><div><div class="metric-value">{{ $staffOnLeaveCount }}</div><div class="metric-label">Staff on leave</div></div></div>
+            <div class="metric-card" style="--accent: #2f6fed;"><div class="metric-icon">AT</div><div><div class="metric-value">{{ $attendanceTodayCount }}</div><div class="metric-label">Attendance today</div></div></div>
+            <div class="metric-card" style="--accent: #ef4444;"><div class="metric-icon">LT</div><div><div class="metric-value">{{ $lateAttendanceToday }}</div><div class="metric-label">Late today</div></div></div>
+            <div class="metric-card" style="--accent: #7c3aed;"><div class="metric-icon">AP</div><div><div class="metric-value">{{ $pendingAppraisals }}</div><div class="metric-label">Pending appraisals</div></div></div>
+            <div class="metric-card" style="--accent: #b8342b;"><div class="metric-icon">RQ</div><div><div class="metric-value">{{ $pendingRequisitions }}</div><div class="metric-label">Pending requisitions</div></div></div>
+            <div class="metric-card" style="--accent: #c87b16;"><div class="metric-icon">PO</div><div><div class="metric-value">{{ $pendingPurchaseOrders }}</div><div class="metric-label">Pending purchase orders</div></div></div>
+        </div>
+        <div class="chart-grid" style="margin-top: 1rem;">
+            <div class="chart-container"><h3>Staff by role</h3><div class="chart-wrapper"><canvas id="staffRoleChart"></canvas></div></div>
+            <div class="chart-container"><h3>Staff by branch</h3><div class="chart-wrapper"><canvas id="staffBranchChart"></canvas></div></div>
+            <div class="chart-container"><h3>Requisition status</h3><div class="chart-wrapper"><canvas id="requisitionStatusChart"></canvas></div></div>
+            <div class="chart-container"><h3>Purchase order status</h3><div class="chart-wrapper"><canvas id="purchaseOrderStatusChart"></canvas></div></div>
+            <div class="chart-container"><h3>Payroll status</h3><div class="chart-wrapper"><canvas id="payrollStatusChart"></canvas></div></div>
+            <div class="chart-container"><h3>Failed login trend</h3><div class="chart-wrapper"><canvas id="failedLoginTrendChart"></canvas></div></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <div>
                 <h2 class="section-title">Quick access</h2>
                 <p class="subtle">Navigate directly to the sections you review most often as a super admin.</p>
             </div>
@@ -561,6 +684,74 @@
             }
         });
 
+        const palette = ['#b8342b', '#2f6fed', '#2f7d57', '#c87b16', '#7c3aed', '#008b8b', '#ef4444', '#64748b'];
+        const makeChart = (id, type, labels, data, label, options = {}) => {
+            const element = document.getElementById(id);
+            if (!element) return;
+            const ctx = element.getContext('2d');
+            new Chart(ctx, {
+                type,
+                data: {
+                    labels,
+                    datasets: [{
+                        label,
+                        data,
+                        backgroundColor: type === 'line' ? 'rgba(184, 52, 43, 0.12)' : palette,
+                        borderColor: type === 'line' ? '#b8342b' : '#ffffff',
+                        borderWidth: type === 'line' ? 2 : 1,
+                        tension: 0.35,
+                        fill: type === 'line',
+                        borderRadius: type === 'bar' ? 0 : undefined,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: ['pie', 'doughnut', 'line'].includes(type), position: 'bottom' }
+                    },
+                    scales: ['pie', 'doughnut'].includes(type) ? {} : {
+                        y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { precision: 0 } },
+                        x: { ticks: { font: { size: 10 } } }
+                    },
+                    ...options
+                }
+            });
+        };
+
+        makeChart('queueStageChart', 'bar', @json($queueStageCounts->keys()->values()), @json($queueStageCounts->values()->values()), 'Open visits', { indexAxis: 'y' });
+        makeChart('branchWorkloadChart', 'bar', @json($branchPerformance->pluck('branch')), @json($branchPerformance->pluck('visits')), 'Visits');
+        makeChart('bedStatusChart', 'doughnut', ['Available', 'Occupied', 'Cleaning', 'Maintenance'], [{{ $availableBeds }}, {{ $occupiedBeds }}, {{ $cleaningBeds }}, {{ $maintenanceBeds }}], 'Beds');
+        makeChart('admissionsByWardChart', 'bar', @json($admissionsByWard->pluck('name')), @json($admissionsByWard->pluck('total')), 'Admissions', { indexAxis: 'y' });
+
+        const admissionFlowEl = document.getElementById('admissionFlowChart');
+        if (admissionFlowEl) {
+            new Chart(admissionFlowEl.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: @json(collect($monthlyAdmissionsFlow)->pluck('month')),
+                    datasets: [
+                        { label: 'Admissions', data: @json(collect($monthlyAdmissionsFlow)->pluck('admissions')), borderColor: '#b8342b', backgroundColor: 'rgba(184, 52, 43, 0.12)', tension: 0.35, fill: true },
+                        { label: 'Discharges', data: @json(collect($monthlyAdmissionsFlow)->pluck('discharges')), borderColor: '#2f7d57', backgroundColor: 'rgba(47, 125, 87, 0.12)', tension: 0.35, fill: true }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+            });
+        }
+
+        makeChart('labStatusChart', 'doughnut', @json($labStatusCounts->keys()->values()), @json($labStatusCounts->values()->values()), 'Lab tests');
+        makeChart('topLabTestsChart', 'bar', @json($topLabTests->pluck('test_type')), @json($topLabTests->pluck('total')), 'Orders', { indexAxis: 'y' });
+        makeChart('prescriptionStatusChart', 'pie', @json($prescriptionStatusCounts->keys()->values()), @json($prescriptionStatusCounts->values()->values()), 'Prescriptions');
+        makeChart('billStatusChart', 'doughnut', @json($billStatusCounts->keys()->values()), @json($billStatusCounts->values()->values()), 'Bills');
+        makeChart('agingChart', 'bar', @json(array_keys($outstandingAging)), @json(array_values($outstandingAging)), 'Outstanding');
+        makeChart('branchRevenueChart', 'bar', @json($branchPerformance->pluck('branch')), @json($branchPerformance->pluck('revenue')), 'Revenue');
+        makeChart('staffRoleChart', 'doughnut', @json($staffByRole->pluck('name')), @json($staffByRole->pluck('users_count')), 'Users');
+        makeChart('staffBranchChart', 'bar', @json($staffByBranch->pluck('name')), @json($staffByBranch->pluck('users_count')), 'Staff');
+        makeChart('requisitionStatusChart', 'pie', @json($requisitionStatusCounts->keys()->values()), @json($requisitionStatusCounts->values()->values()), 'Requisitions');
+        makeChart('purchaseOrderStatusChart', 'pie', @json($purchaseOrderStatusCounts->keys()->values()), @json($purchaseOrderStatusCounts->values()->values()), 'Purchase orders');
+        makeChart('payrollStatusChart', 'doughnut', @json($payrollStatusCounts->keys()->values()), @json($payrollStatusCounts->values()->values()), 'Payroll');
+        makeChart('failedLoginTrendChart', 'line', @json(collect($failedLoginTrend)->pluck('day')), @json(collect($failedLoginTrend)->pluck('failed')), 'Failed logins');
+
         // Financial Performance Charts
         const incomeVsExpensesCtx = document.getElementById('financialChart')?.getContext('2d');
         if (incomeVsExpensesCtx) {
@@ -689,6 +880,29 @@
         .financial-chart-canvas {
             position: relative;
             min-height: 360px;
+        }
+        .progress-row {
+            margin-top: 1rem;
+            border: 1px solid #f0d4d1;
+            background: #fffaf9;
+            padding: 0.9rem 1rem;
+        }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.45rem;
+            color: #374151;
+            font-weight: 700;
+        }
+        .progress-track {
+            height: 12px;
+            background: #f3e6e4;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #b8342b;
         }
     </style>
 @endsection

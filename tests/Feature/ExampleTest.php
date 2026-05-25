@@ -38,7 +38,7 @@ class ExampleTest extends TestCase
         $response->assertRedirect(route('admin.dashboard'));
     }
 
-    public function test_branch_staff_root_redirects_to_clinic_cards(): void
+    public function test_branch_staff_root_redirects_to_role_dashboard(): void
     {
         $branch = Branch::create(['name' => 'Masaka Main Clinic', 'code' => 'MASAKA', 'status' => 'active']);
 
@@ -47,7 +47,7 @@ class ExampleTest extends TestCase
 
         $response = $this->actingAs($nurse)->get('/');
 
-        $response->assertRedirect(route('branches.cards'));
+        $response->assertRedirect(route('dashboard.role'));
     }
 
     public function test_guest_is_redirected_to_login_from_protected_clinic_cards_route(): void
@@ -94,7 +94,7 @@ class ExampleTest extends TestCase
         $response->assertSee('Manage branches');
     }
 
-    public function test_branch_staff_login_redirects_to_clinic_cards(): void
+    public function test_branch_staff_login_redirects_to_role_dashboard(): void
     {
         $branch = Branch::create(['name' => 'Kalangala Clinic', 'code' => 'KALANGALA', 'status' => 'active']);
 
@@ -106,6 +106,6 @@ class ExampleTest extends TestCase
             'password' => 'password',
         ]);
 
-        $response->assertRedirect(route('branches.cards'));
+        $response->assertRedirect(route('dashboard.role'));
     }
 }

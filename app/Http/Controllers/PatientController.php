@@ -2,7 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResolvesBranchContext;
+use App\Models\Branch;
+use App\Models\Patient;
+use App\Models\Pharmacy;
+use App\Models\User;
+use App\Models\Visit;
 use App\Services\AuditLogService;
+use Illuminate\Http\Request;
 
 class PatientController extends Controller
 {
@@ -15,6 +22,8 @@ class PatientController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Patient::class);
+
         $user = $this->currentUser();
         $branchId = $this->branchFilterId($request);
 
@@ -76,6 +85,8 @@ class PatientController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', Patient::class);
+
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'first_name' => 'required|string|max:255',
@@ -117,6 +128,8 @@ class PatientController extends Controller
                 'chief_complaint' => $validated['chief_complaint'] ?? null,
                 'notes' => null,
                 'status' => 'open',
+                'workflow_stage' => Visit::STAGE_CHECKED_IN,
+                'checked_in_at' => now(),
             ]);
 
             return redirect()->route('patients.show', $patient)->with('success', 'Patient registered and visit opened.');
@@ -128,7 +141,7 @@ class PatientController extends Controller
     public function show($id)
     {
         $patient = Patient::visibleTo($this->currentUser())
-            ->with(['branch', 'visits.provider', 'labTests'])
+            ->with(['branch', 'visits.provider', 'labTests', 'allergies'])
             ->findOrFail($id);
 
         $this->authorize('view', $patient);
@@ -175,7 +188,7 @@ class PatientController extends Controller
         return redirect()->route('patients.index')->with('success', 'Patient profile updated.');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $patient = Patient::visibleTo($this->currentUser())->findOrFail($id);
         $this->authorize('delete', $patient);

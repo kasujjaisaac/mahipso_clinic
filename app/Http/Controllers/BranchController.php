@@ -3,21 +3,31 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ResolvesBranchContext;
+use App\Models\Admission;
 use App\Models\Appointment;
 use App\Models\AuditLog;
+use App\Models\Bed;
 use App\Models\Bill;
 use App\Models\Branch;
 use App\Models\Document;
+use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\HivRecord;
 use App\Models\Inventory;
+use App\Models\LabTest;
 use App\Models\MedicalRecord;
 use App\Models\Message;
 use App\Models\Patient;
 use App\Models\Pharmacy;
+use App\Models\PayrollRun;
 use App\Models\Product;
+use App\Models\PrescriptionOrder;
+use App\Models\PurchaseOrder;
+use App\Models\Requisition;
 use App\Models\Role;
 use App\Models\Sale;
+use App\Models\StaffAppraisal;
+use App\Models\StaffAttendance;
 use App\Models\User;
 use App\Models\Visit;
 use Illuminate\Http\Request;
@@ -374,6 +384,169 @@ class BranchController extends Controller
             ? AuditLog::activeSessions()->count() 
             : 0;
 
+        $hasAdmissionsTable = Schema::hasTable('admissions');
+        $hasBedsTable = Schema::hasTable('beds');
+        $hasWardsTable = Schema::hasTable('wards');
+        $hasLabTestsTable = Schema::hasTable('lab_tests');
+        $hasPrescriptionOrdersTable = Schema::hasTable('prescription_orders');
+        $hasEmployeesTable = Schema::hasTable('employees');
+        $hasAttendanceTable = Schema::hasTable('staff_attendances');
+        $hasPayrollRunsTable = Schema::hasTable('payroll_runs');
+        $hasAppraisalsTable = Schema::hasTable('staff_appraisals');
+        $hasRequisitionsTable = Schema::hasTable('requisitions');
+        $hasPurchaseOrdersTable = Schema::hasTable('purchase_orders');
+
+        // Live operations and patient flow
+        $todayVisitsCount = Schema::hasTable('visits') ? Visit::whereDate('visit_date', today())->count() : 0;
+        $openVisitsCount = Schema::hasTable('visits') ? Visit::where('status', 'open')->count() : 0;
+        $completedVisitsToday = Schema::hasTable('visits') ? Visit::where('workflow_stage', Visit::STAGE_COMPLETED)->whereDate('completed_at', today())->count() : 0;
+        $queueStageCounts = Schema::hasTable('visits')
+            ? collect(Visit::WORKFLOW_STAGES)->mapWithKeys(fn ($label, $stage) => [
+                $label => Visit::where('status', 'open')->where('workflow_stage', $stage)->count(),
+            ])
+            : collect(Visit::WORKFLOW_STAGES)->mapWithKeys(fn ($label) => [$label => 0]);
+
+        $appointmentsToday = Schema::hasTable('appointments') ? Appointment::whereDate('scheduled_at', today())->count() : 0;
+        $appointmentsNext7Days = Schema::hasTable('appointments') ? Appointment::whereBetween('scheduled_at', [now()->startOfDay(), now()->addDays(7)->endOfDay()])->count() : 0;
+
+        // Inpatient command centre
+        $activeAdmissionsCount = $hasAdmissionsTable ? Admission::whereIn('status', [Admission::STATUS_ADMITTED, Admission::STATUS_READY, Admission::STATUS_PENDING_CLEARANCE])->count() : 0;
+        $admissionsToday = $hasAdmissionsTable ? Admission::whereDate('admitted_at', today())->count() : 0;
+        $dischargesToday = $hasAdmissionsTable ? Admission::whereNotNull('discharged_at')->whereDate('discharged_at', today())->count() : 0;
+        $readyForDischarge = $hasAdmissionsTable ? Admission::where('status', Admission::STATUS_READY)->count() : 0;
+        $pendingDischargeClearance = $hasAdmissionsTable ? Admission::whereIn('status', [Admission::STATUS_READY, Admission::STATUS_PENDING_CLEARANCE])
+            ->where(fn ($query) => $query->where('nursing_cleared', false)->orWhere('pharmacy_cleared', false)->orWhere('billing_cleared', false))
+            ->count() : 0;
+        $totalBeds = $hasBedsTable ? Bed::count() : 0;
+        $availableBeds = $hasBedsTable ? Bed::where('status', Bed::STATUS_AVAILABLE)->count() : 0;
+        $occupiedBeds = $hasBedsTable ? Bed::where('status', Bed::STATUS_OCCUPIED)->count() : 0;
+        $cleaningBeds = $hasBedsTable ? Bed::where('status', Bed::STATUS_CLEANING)->count() : 0;
+        $maintenanceBeds = $hasBedsTable ? Bed::where('status', Bed::STATUS_MAINTENANCE)->count() : 0;
+        $bedOccupancyRate = $totalBeds > 0 ? round(($occupiedBeds / $totalBeds) * 100, 1) : 0;
+        $admissionsByWard = $hasAdmissionsTable && $hasWardsTable
+            ? Admission::query()
+                ->join('wards', 'admissions.ward_id', '=', 'wards.id')
+                ->whereIn('admissions.status', [Admission::STATUS_ADMITTED, Admission::STATUS_READY, Admission::STATUS_PENDING_CLEARANCE])
+                ->select('wards.name', DB::raw('COUNT(*) as total'))
+                ->groupBy('wards.name')
+                ->orderByDesc('total')
+                ->limit(8)
+                ->get()
+            : collect();
+
+        $monthlyAdmissionsFlow = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $startDate = now()->subMonths($i)->startOfMonth();
+            $endDate = now()->subMonths($i)->endOfMonth();
+            $monthlyAdmissionsFlow[] = [
+                'month' => $startDate->format('M Y'),
+                'admissions' => $hasAdmissionsTable ? Admission::whereBetween('admitted_at', [$startDate, $endDate])->count() : 0,
+                'discharges' => $hasAdmissionsTable ? Admission::whereBetween('discharged_at', [$startDate, $endDate])->count() : 0,
+            ];
+        }
+
+        // Clinical workload
+        $pendingLabTests = $hasLabTestsTable ? LabTest::whereIn('status', ['ordered', 'in_progress'])->count() : 0;
+        $completedLabTestsToday = $hasLabTestsTable ? LabTest::where('status', 'completed')->whereDate('completed_at', today())->count() : 0;
+        $labStatusCounts = $hasLabTestsTable
+            ? LabTest::select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status')
+            : collect();
+        $topLabTests = $hasLabTestsTable
+            ? LabTest::select('test_type', DB::raw('COUNT(*) as total'))->groupBy('test_type')->orderByDesc('total')->limit(8)->get()
+            : collect();
+
+        $pendingPrescriptions = $hasPrescriptionOrdersTable ? PrescriptionOrder::whereIn('status', ['pending', 'partially_dispensed'])->count() : 0;
+        $dispensedToday = $hasPrescriptionOrdersTable ? PrescriptionOrder::whereNotNull('dispensed_at')->whereDate('dispensed_at', today())->count() : 0;
+        $prescriptionStatusCounts = $hasPrescriptionOrdersTable
+            ? PrescriptionOrder::select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status')
+            : collect();
+        $lowStockProducts = Schema::hasTable('products') ? Product::lowStock()->count() : 0;
+        $outOfStockProducts = Schema::hasTable('products') ? Product::where('quantity', '<=', 0)->count() : 0;
+        $expiringProducts = Schema::hasTable('products') ? Product::expiringSoon(30)->count() : 0;
+
+        // Billing operations
+        $billStatusCounts = $hasBillsTable
+            ? Bill::select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status')
+            : collect();
+        $billingBlockedDischarges = $hasAdmissionsTable ? Admission::whereIn('status', [Admission::STATUS_READY, Admission::STATUS_PENDING_CLEARANCE])->where('billing_cleared', false)->count() : 0;
+        $outstandingAging = [
+            '0-30 days' => 0.0,
+            '31-60 days' => 0.0,
+            '61-90 days' => 0.0,
+            '90+ days' => 0.0,
+        ];
+        if ($hasBillsTable) {
+            Bill::whereIn('status', ['unpaid', 'partial'])->get()->each(function (Bill $bill) use (&$outstandingAging) {
+                $balance = max((float) $bill->amount - (float) $bill->paid, 0);
+                $age = $bill->billed_at ? $bill->billed_at->diffInDays(now()) : 0;
+                if ($age <= 30) {
+                    $outstandingAging['0-30 days'] += $balance;
+                } elseif ($age <= 60) {
+                    $outstandingAging['31-60 days'] += $balance;
+                } elseif ($age <= 90) {
+                    $outstandingAging['61-90 days'] += $balance;
+                } else {
+                    $outstandingAging['90+ days'] += $balance;
+                }
+            });
+        }
+
+        // Staff, procurement, and branch performance
+        $activeStaffCount = $hasEmployeesTable ? Employee::where('status', 'active')->count() : 0;
+        $staffOnLeaveCount = $hasEmployeesTable ? Employee::where('status', 'on_leave')->count() : 0;
+        $attendanceTodayCount = $hasAttendanceTable ? StaffAttendance::whereDate('work_date', today())->count() : 0;
+        $lateAttendanceToday = $hasAttendanceTable ? StaffAttendance::whereDate('work_date', today())->where('status', 'late')->count() : 0;
+        $pendingAppraisals = $hasAppraisalsTable ? StaffAppraisal::whereIn('status', ['draft', 'pending'])->count() : 0;
+        $payrollStatusCounts = $hasPayrollRunsTable
+            ? PayrollRun::select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status')
+            : collect();
+        $staffByRole = Schema::hasTable('roles') && Schema::hasTable('model_has_roles')
+            ? DB::table('roles')
+                ->leftJoin('model_has_roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->select('roles.name', DB::raw('COUNT(model_has_roles.model_id) as users_count'))
+                ->groupBy('roles.id', 'roles.name')
+                ->orderByDesc('users_count')
+                ->limit(8)
+                ->get()
+            : collect();
+        $staffByBranch = Schema::hasTable('branches') && $hasEmployeesTable
+            ? Branch::withCount('users')->orderByDesc('users_count')->limit(8)->get()
+            : collect();
+
+        $requisitionStatusCounts = $hasRequisitionsTable
+            ? Requisition::select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status')
+            : collect();
+        $purchaseOrderStatusCounts = $hasPurchaseOrdersTable
+            ? PurchaseOrder::select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status')
+            : collect();
+        $pendingRequisitions = $hasRequisitionsTable ? Requisition::whereNotIn('status', ['approved', 'rejected', 'cancelled'])->count() : 0;
+        $pendingPurchaseOrders = $hasPurchaseOrdersTable ? PurchaseOrder::whereIn('status', ['draft', 'pending', 'ordered'])->count() : 0;
+
+        $branchPerformance = Schema::hasTable('branches')
+            ? Branch::active()->withCount(['patients', 'visits', 'appointments'])->orderBy('name')->get()->map(function (Branch $branch) use ($hasAdmissionsTable, $hasBillsTable) {
+                $revenue = $hasBillsTable
+                    ? Bill::whereHas('patient', fn ($query) => $query->where('branch_id', $branch->id))->sum('paid')
+                    : 0;
+                return [
+                    'branch' => $branch->name,
+                    'patients' => $branch->patients_count,
+                    'visits' => $branch->visits_count,
+                    'appointments' => $branch->appointments_count,
+                    'admissions' => $hasAdmissionsTable ? Admission::where('branch_id', $branch->id)->count() : 0,
+                    'revenue' => (float) $revenue,
+                ];
+            })
+            : collect();
+
+        $failedLoginTrend = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = now()->subDays($i)->toDateString();
+            $failedLoginTrend[] = [
+                'day' => now()->subDays($i)->format('M d'),
+                'failed' => Schema::hasTable('audit_logs') ? AuditLog::where('login_status', 'failed')->whereDate('created_at', $date)->count() : 0,
+            ];
+        }
+
         $adminCalendarEvents = Appointment::whereBetween('scheduled_at', [now()->startOfDay(), now()->addDays(14)->endOfDay()])
             ->with(['patient', 'doctor', 'branch'])
             ->orderBy('scheduled_at')
@@ -418,6 +591,52 @@ class BranchController extends Controller
             'successfulLogins',
             'failedLogins',
             'activeSessions',
+            'todayVisitsCount',
+            'openVisitsCount',
+            'completedVisitsToday',
+            'queueStageCounts',
+            'appointmentsToday',
+            'appointmentsNext7Days',
+            'activeAdmissionsCount',
+            'admissionsToday',
+            'dischargesToday',
+            'readyForDischarge',
+            'pendingDischargeClearance',
+            'totalBeds',
+            'availableBeds',
+            'occupiedBeds',
+            'cleaningBeds',
+            'maintenanceBeds',
+            'bedOccupancyRate',
+            'admissionsByWard',
+            'monthlyAdmissionsFlow',
+            'pendingLabTests',
+            'completedLabTestsToday',
+            'labStatusCounts',
+            'topLabTests',
+            'pendingPrescriptions',
+            'dispensedToday',
+            'prescriptionStatusCounts',
+            'lowStockProducts',
+            'outOfStockProducts',
+            'expiringProducts',
+            'billStatusCounts',
+            'billingBlockedDischarges',
+            'outstandingAging',
+            'activeStaffCount',
+            'staffOnLeaveCount',
+            'attendanceTodayCount',
+            'lateAttendanceToday',
+            'pendingAppraisals',
+            'payrollStatusCounts',
+            'staffByRole',
+            'staffByBranch',
+            'requisitionStatusCounts',
+            'purchaseOrderStatusCounts',
+            'pendingRequisitions',
+            'pendingPurchaseOrders',
+            'branchPerformance',
+            'failedLoginTrend',
             'adminCalendarEvents'
         ));
     }

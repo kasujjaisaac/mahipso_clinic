@@ -9,7 +9,7 @@ class PatientPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'branch_admin', 'doctor', 'nurse', 'receptionist']);
+        return $user->canAccessAnyModule(['front_office', 'clinic', 'nursing']);
     }
 
     public function view(User $user, Patient $patient): bool
@@ -19,13 +19,13 @@ class PatientPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'branch_admin', 'doctor', 'nurse', 'receptionist']);
+        return $user->canAccessAnyModule(['front_office', 'clinic', 'nursing']);
     }
 
     public function update(User $user, Patient $patient): bool
     {
         return $user->isSuperAdmin()
-            || ($user->hasRole(['branch_admin', 'doctor', 'nurse', 'receptionist']) && $user->branch_id === $patient->branch_id);
+            || ($user->canAccessAnyModule(['front_office', 'clinic', 'nursing']) && $user->branch_id === $patient->branch_id);
     }
 
     public function delete(User $user, Patient $patient): bool

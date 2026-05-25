@@ -60,7 +60,35 @@
                 @error('branch_id')<p class="subtle">{{ $message }}</p>@enderror
             </div>
 
-            <div></div>
+            <div>
+                <label>Employee number</label>
+                <input type="text" name="employee_number" value="{{ old('employee_number') }}">
+                @error('employee_number')<p class="subtle">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label>Job title</label>
+                <input type="text" name="job_title" value="{{ old('job_title') }}">
+                @error('job_title')<p class="subtle">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label>Department</label>
+                <input type="text" name="department" value="{{ old('department') }}">
+                @error('department')<p class="subtle">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label>Line supervisor</label>
+                <select name="line_supervisor_id">
+                    <option value="">Not assigned</option>
+                    @foreach($supervisors as $supervisor)
+                        <option value="{{ $supervisor->id }}" {{ old('line_supervisor_id') == $supervisor->id ? 'selected' : '' }}>{{ $supervisor->name }}</option>
+                    @endforeach
+                </select>
+                @error('line_supervisor_id')<p class="subtle">{{ $message }}</p>@enderror
+            </div>
+
             <div>
                 <button class="primary-button" type="submit">Create user</button>
             </div>

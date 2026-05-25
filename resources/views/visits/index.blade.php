@@ -7,6 +7,7 @@
 @section('page_subtitle', 'Follow patient encounters from check-in to closure, including provider assignment and linked records.')
 
 @section('topbar_actions')
+    <a class="ghost-button" href="{{ route('clinic-queue.index') }}">Clinic queue</a>
     <a class="primary-button" href="{{ route('visits.create') }}">New visit</a>
 @endsection
 
@@ -36,6 +37,7 @@
                         <th>Type</th>
                         <th>Provider</th>
                         <th>Status</th>
+                        <th>Stage</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -48,6 +50,7 @@
                             <td>{{ ucfirst($visit->visit_type) }}</td>
                             <td>{{ optional($visit->provider)->name ?: 'N/A' }}</td>
                             <td><span class="status-pill {{ $visit->status }}">{{ ucfirst($visit->status) }}</span></td>
+                            <td><span class="status-pill {{ $visit->workflow_stage }}">{{ $visit->workflow_stage_label }}</span></td>
                             <td>
                                 <div class="inline-actions">
                                     <a class="ghost-button" href="{{ route('visits.show', $visit) }}">View</a>
@@ -62,7 +65,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="empty-state">No visits found.</td>
+                            <td colspan="8" class="empty-state">No visits found.</td>
                         </tr>
                     @endforelse
                 </tbody>

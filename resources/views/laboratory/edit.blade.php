@@ -1,49 +1,60 @@
 @extends('layouts.app')
 
+@section('title', 'Lab Result')
+@section('section', 'Laboratory')
+@section('page_title', 'Update lab order/result')
+
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    <h1 class="text-2xl font-bold mb-4">Edit Laboratory Test</h1>
-    <form action="{{ route('laboratory.update', $labTest) }}" method="POST" class="bg-white shadow rounded-lg p-6 max-w-lg mx-auto">
+<div class="panel">
+    <form action="{{ route('laboratory.update', $labTest) }}" method="POST" class="form-grid">
         @csrf
         @method('PUT')
-        <div class="mb-4">
-            <label for="patient_id" class="block font-semibold mb-1">Patient</label>
-            <input type="number" name="patient_id" id="patient_id" class="form-control" value="{{ $labTest->patient_id }}" required>
+        <input type="hidden" name="patient_id" value="{{ $labTest->patient_id }}">
+        <input type="hidden" name="visit_id" value="{{ $labTest->visit_id }}">
+        <div>
+            <label>Test type</label>
+            <input type="text" name="test_type" value="{{ $labTest->test_type }}" required>
         </div>
-        <div class="mb-4">
-            <label for="visit_id" class="block font-semibold mb-1">Visit (optional)</label>
-            <input type="number" name="visit_id" id="visit_id" class="form-control" value="{{ $labTest->visit_id }}">
-        </div>
-        <div class="mb-4">
-            <label for="test_type" class="block font-semibold mb-1">Test Type</label>
-            <input type="text" name="test_type" id="test_type" class="form-control" value="{{ $labTest->test_type }}" required>
-        </div>
-        <div class="mb-4">
-            <label for="status" class="block font-semibold mb-1">Status</label>
-            <select name="status" id="status" class="form-control">
-                <option value="ordered" @if($labTest->status=='ordered') selected @endif>Ordered</option>
-                <option value="in_progress" @if($labTest->status=='in_progress') selected @endif>In Progress</option>
-                <option value="completed" @if($labTest->status=='completed') selected @endif>Completed</option>
-                <option value="cancelled" @if($labTest->status=='cancelled') selected @endif>Cancelled</option>
+        <div>
+            <label>Status</label>
+            <select name="status">
+                @foreach(['ordered', 'in_progress', 'completed', 'cancelled'] as $status)
+                    <option value="{{ $status }}" @selected($labTest->status === $status)>{{ ucfirst(str_replace('_', ' ', $status)) }}</option>
+                @endforeach
             </select>
         </div>
-        <div class="mb-4">
-            <label for="ordered_at" class="block font-semibold mb-1">Ordered At</label>
-            <input type="date" name="ordered_at" id="ordered_at" class="form-control" value="{{ $labTest->ordered_at }}" required>
+        <div>
+            <label>Price</label>
+            <input type="number" name="price" step="0.01" min="0" value="{{ $labTest->price }}">
         </div>
-        <div class="mb-4">
-            <label for="completed_at" class="block font-semibold mb-1">Completed At</label>
-            <input type="date" name="completed_at" id="completed_at" class="form-control" value="{{ $labTest->completed_at }}">
+        <div>
+            <label>Ordered at</label>
+            <input type="date" name="ordered_at" value="{{ optional($labTest->ordered_at)->format('Y-m-d') ?? $labTest->ordered_at }}" required>
         </div>
-        <div class="mb-4">
-            <label for="results" class="block font-semibold mb-1">Results</label>
-            <textarea name="results" id="results" class="form-control">{{ $labTest->results }}</textarea>
+        <div>
+            <label>Completed at</label>
+            <input type="date" name="completed_at" value="{{ optional($labTest->completed_at)->format('Y-m-d') ?? $labTest->completed_at }}">
         </div>
-        <div class="mb-4">
-            <label for="notes" class="block font-semibold mb-1">Notes</label>
-            <textarea name="notes" id="notes" class="form-control">{{ $labTest->notes }}</textarea>
+        <div>
+            <label>Result flag</label>
+            <select name="result_flag">
+                <option value="">None</option>
+                @foreach(['normal', 'abnormal', 'critical'] as $flag)
+                    <option value="{{ $flag }}" @selected($labTest->result_flag === $flag)>{{ ucfirst($flag) }}</option>
+                @endforeach
+            </select>
         </div>
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Update Lab Test</button>
+        <div class="field-span-2">
+            <label>Results</label>
+            <textarea name="results" rows="5">{{ $labTest->results }}</textarea>
+        </div>
+        <div class="field-span-2">
+            <label>Notes</label>
+            <textarea name="notes">{{ $labTest->notes }}</textarea>
+        </div>
+        <div>
+            <button type="submit" class="primary-button">Save result</button>
+        </div>
     </form>
 </div>
 @endsection

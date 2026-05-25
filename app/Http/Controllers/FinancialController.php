@@ -13,6 +13,11 @@ class FinancialController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware(function ($request, $next) {
+            abort_unless($request->user()->canAccessModule('finance'), 403);
+
+            return $next($request);
+        });
     }
 
     /**
@@ -25,34 +30,34 @@ class FinancialController extends Controller
         $currentYear = $request->get('year', now()->year);
 
         // Income Statistics
-        $totalPatientBills = Bill::whereYear('billed_at', $currentYear)
+        $totalPatientBills = $this->billQuery($request)->whereYear('billed_at', $currentYear)
             ->whereMonth('billed_at', $currentMonth)
             ->sum('amount');
 
-        $paidPatientBills = Bill::whereYear('billed_at', $currentYear)
+        $paidPatientBills = $this->billQuery($request)->whereYear('billed_at', $currentYear)
             ->whereMonth('billed_at', $currentMonth)
             ->where('status', 'paid')
             ->sum('paid');
 
-        $totalPharmacySales = Sale::whereYear('created_at', $currentYear)
+        $totalPharmacySales = $this->saleQuery($request)->whereYear('created_at', $currentYear)
             ->whereMonth('created_at', $currentMonth)
             ->sum('total_price');
 
         $totalIncome = $paidPatientBills + $totalPharmacySales;
 
         // Expense Statistics
-        $totalExpenses = Expense::whereYear('paid_at', $currentYear)
+        $totalExpenses = $this->expenseQuery($request)->whereYear('paid_at', $currentYear)
             ->whereMonth('paid_at', $currentMonth)
             ->where('status', 'paid')
             ->sum('amount');
 
-        $pendingExpenses = Expense::whereYear('due_at', $currentYear)
+        $pendingExpenses = $this->expenseQuery($request)->whereYear('due_at', $currentYear)
             ->whereMonth('due_at', $currentMonth)
             ->where('status', 'pending')
             ->sum('amount');
 
         // Category-wise expenses
-        $expensesByCategory = Expense::select('category', DB::raw('SUM(amount) as total'))
+        $expensesByCategory = $this->expenseQuery($request)->select('category', DB::raw('SUM(amount) as total'))
             ->whereYear('paid_at', $currentYear)
             ->whereMonth('paid_at', $currentMonth)
             ->where('status', 'paid')
@@ -60,20 +65,20 @@ class FinancialController extends Controller
             ->get();
 
         // Recent transactions
-        $recentBills = Bill::with('patient')
+        $recentBills = $this->billQuery($request)->with('patient')
             ->whereYear('billed_at', $currentYear)
             ->whereMonth('billed_at', $currentMonth)
             ->orderBy('billed_at', 'desc')
             ->limit(5)
             ->get();
 
-        $recentExpenses = Expense::whereYear('paid_at', $currentYear)
+        $recentExpenses = $this->expenseQuery($request)->whereYear('paid_at', $currentYear)
             ->whereMonth('paid_at', $currentMonth)
             ->orderBy('paid_at', 'desc')
             ->limit(5)
             ->get();
 
-        $recentSales = Sale::with(['pharmacy', 'patient'])
+        $recentSales = $this->saleQuery($request)->with(['pharmacy', 'patient'])
             ->whereYear('created_at', $currentYear)
             ->whereMonth('created_at', $currentMonth)
             ->orderBy('created_at', 'desc')
@@ -86,14 +91,14 @@ class FinancialController extends Controller
             $date = now()->subMonths($i);
             $monthlyData[] = [
                 'month' => $date->format('M Y'),
-                'income' => Bill::whereYear('billed_at', $date->year)
+                'income' => $this->billQuery($request)->whereYear('billed_at', $date->year)
                     ->whereMonth('billed_at', $date->month)
                     ->where('status', 'paid')
                     ->sum('paid') +
-                    Sale::whereYear('created_at', $date->year)
+                    $this->saleQuery($request)->whereYear('created_at', $date->year)
                     ->whereMonth('created_at', $date->month)
-                    ->sum('total_amount'),
-                'expenses' => Expense::whereYear('paid_at', $date->year)
+                    ->sum('total_price'),
+                'expenses' => $this->expenseQuery($request)->whereYear('paid_at', $date->year)
                     ->whereMonth('paid_at', $date->month)
                     ->where('status', 'paid')
                     ->sum('amount')
@@ -122,7 +127,7 @@ class FinancialController extends Controller
      */
     public function income(Request $request)
     {
-        $query = Bill::with(['patient', 'visit']);
+        $query = $this->billQuery($request)->with(['patient', 'visit']);
 
         // Apply filters
         if ($request->filled('status')) {
@@ -147,7 +152,7 @@ class FinancialController extends Controller
      */
     public function expenditure(Request $request)
     {
-        $query = Expense::with('branch');
+        $query = $this->expenseQuery($request)->with('branch');
 
         // Apply filters
         if ($request->filled('category')) {
@@ -169,5 +174,24 @@ class FinancialController extends Controller
         $expenses = $query->orderBy('paid_at', 'desc')->paginate(15);
 
         return view('financial.expenditure', compact('expenses'));
+    }
+
+    private function billQuery(Request $request)
+    {
+        return Bill::visibleTo($request->user());
+    }
+
+    private function expenseQuery(Request $request)
+    {
+        return Expense::query()
+            ->when(! $request->user()->isSuperAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branch_id));
+    }
+
+    private function saleQuery(Request $request)
+    {
+        return Sale::query()
+            ->when(! $request->user()->isSuperAdmin(), function ($query) use ($request) {
+                $query->whereHas('pharmacy', fn ($pharmacyQuery) => $pharmacyQuery->where('branch_id', $request->user()->branch_id));
+            });
     }
 }

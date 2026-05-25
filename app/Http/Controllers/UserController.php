@@ -7,7 +7,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
+use Illuminate\Validation\Rule;
+use App\Models\Role;
 
 class UserController extends Controller
 {
@@ -44,9 +45,10 @@ class UserController extends Controller
         $this->authorizeSuperAdmin();
 
         $branches = Branch::active()->orderBy('name')->get();
-        $roles = Role::whereIn('name', ['super_admin', 'branch_admin', 'doctor', 'nurse', 'receptionist', 'counselor', 'pharmacist', 'labtech'])->get();
+        $roles = Role::orderBy('name')->get();
+        $supervisors = User::role(['line_supervisor', 'branch_admin', 'super_admin'])->orderBy('name')->get();
 
-        return view('users.create', compact('branches', 'roles'));
+        return view('users.create', compact('branches', 'roles', 'supervisors'));
     }
 
     public function store(Request $request)
@@ -58,18 +60,27 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|exists:roles,name',
-            'branch_id' => 'nullable|exists:branches,id',
+            'employee_number' => 'nullable|string|max:100',
+            'job_title' => 'nullable|string|max:255',
+            'department' => 'nullable|string|max:255',
+            'line_supervisor_id' => 'nullable|exists:users,id',
+            'branch_id' => [
+                Rule::requiredIf(fn () => $request->input('role') !== 'super_admin'),
+                'nullable',
+                Rule::exists('branches', 'id')->where('status', 'active'),
+            ],
         ]);
-
-        if ($validated['role'] !== 'super_admin' && empty($validated['branch_id'])) {
-            return back()->withInput()->withErrors(['branch_id' => 'Branch is required for this role.']);
-        }
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'branch_id' => $validated['branch_id'] ?? null,
+            'employee_number' => $validated['employee_number'] ?? null,
+            'job_title' => $validated['job_title'] ?? null,
+            'department' => $validated['department'] ?? null,
+            'line_supervisor_id' => $validated['line_supervisor_id'] ?? null,
+            'last_password_changed_at' => now(),
         ]);
 
         $user->syncRoles([$validated['role']]);
@@ -82,11 +93,12 @@ class UserController extends Controller
         $this->authorizeSuperAdmin();
 
         $branches = Branch::active()->orderBy('name')->get();
-        $roles = Role::whereIn('name', ['super_admin', 'branch_admin', 'doctor', 'nurse', 'receptionist', 'counselor', 'pharmacist', 'labtech'])->get();
+        $roles = Role::orderBy('name')->get();
+        $supervisors = User::role(['line_supervisor', 'branch_admin', 'super_admin'])->whereKeyNot($user->id)->orderBy('name')->get();
 
         $userRole = $user->getRoleNames()->first();
 
-        return view('users.edit', compact('user', 'branches', 'roles', 'userRole'));
+        return view('users.edit', compact('user', 'branches', 'roles', 'userRole', 'supervisors'));
     }
 
     public function show(User $user)
@@ -105,19 +117,29 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:8|confirmed',
             'role' => 'required|exists:roles,name',
-            'branch_id' => 'nullable|exists:branches,id',
+            'employee_number' => 'nullable|string|max:100',
+            'job_title' => 'nullable|string|max:255',
+            'department' => 'nullable|string|max:255',
+            'line_supervisor_id' => ['nullable', 'exists:users,id', Rule::notIn([$user->id])],
+            'branch_id' => [
+                Rule::requiredIf(fn () => $request->input('role') !== 'super_admin'),
+                'nullable',
+                Rule::exists('branches', 'id')->where('status', 'active'),
+            ],
         ]);
-
-        if ($validated['role'] !== 'super_admin' && empty($validated['branch_id'])) {
-            return back()->withInput()->withErrors(['branch_id' => 'Branch is required for this role.']);
-        }
 
         $user->name = $validated['name'];
         $user->email = $validated['email'];
         $user->branch_id = $validated['branch_id'] ?? null;
+        $user->employee_number = $validated['employee_number'] ?? null;
+        $user->job_title = $validated['job_title'] ?? null;
+        $user->department = $validated['department'] ?? null;
+        $user->line_supervisor_id = $validated['line_supervisor_id'] ?? null;
 
         if (! empty($validated['password'])) {
             $user->password = Hash::make($validated['password']);
+            $user->last_password_changed_at = now();
+            $user->must_change_password = false;
         }
 
         $user->save();

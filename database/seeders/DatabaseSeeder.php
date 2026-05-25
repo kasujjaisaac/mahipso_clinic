@@ -7,7 +7,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 
 class DatabaseSeeder extends Seeder
 {
@@ -30,9 +30,12 @@ class DatabaseSeeder extends Seeder
 
         $branch = Branch::where('code','MASAKA')->first();
 
-        $roles = ['super_admin', 'branch_admin', 'doctor', 'nurse', 'receptionist', 'counselor', 'pharmacist', 'labtech', 'patient'];
+        $roles = ['super_admin', 'branch_admin', 'line_supervisor', 'finance_officer', 'hr_manager', 'doctor', 'nurse', 'receptionist', 'counselor', 'pharmacist', 'labtech', 'patient'];
         foreach ($roles as $role) {
-            Role::firstOrCreate(['name' => $role]);
+            Role::firstOrCreate(
+                ['name' => $role, 'guard_name' => 'web'],
+                ['module_access' => Role::defaultModulesFor($role)]
+            );
         }
 
         $branchAdmin = User::firstOrCreate(

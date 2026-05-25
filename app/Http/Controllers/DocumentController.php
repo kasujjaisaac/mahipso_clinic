@@ -6,6 +6,16 @@ use Illuminate\Http\Request;
 
 class DocumentController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware(function ($request, $next) {
+            abort_unless($request->user()->canAccessModule('programs'), 403);
+
+            return $next($request);
+        });
+    }
+
     public function index() {
         $documents = \App\Models\Document::with('user')->latest()->paginate(20);
         return view('documents.index', compact('documents'));

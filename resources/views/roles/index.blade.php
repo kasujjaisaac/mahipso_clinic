@@ -1,41 +1,55 @@
 @extends('layouts.app')
 
+@section('title', 'Roles & Access')
+@section('page_title', 'Roles & Access')
+
+@section('topbar_actions')
+    <a class="primary-button" href="{{ route('roles.create') }}">Add role</a>
+@endsection
+
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    <h1 class="text-2xl font-bold mb-6">User Roles</h1>
-    <a href="{{ route('roles.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-4 inline-block">Add Role</a>
-    <div class="bg-white shadow rounded-lg p-4">
-        <table class="min-w-full divide-y divide-gray-200">
+<div class="panel">
+    <div class="panel-header">
+        <h2 class="section-title">Role access modules</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
             <thead>
                 <tr>
-                    <th class="px-4 py-2 text-left">Name</th>
-                    <th class="px-4 py-2 text-left">Description</th>
-                    <th class="px-4 py-2 text-left">Users</th>
-                    <th class="px-4 py-2 text-left">Actions</th>
+                    <th>Role</th>
+                    <th>Description</th>
+                    <th>Office Modules</th>
+                    <th>Users</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($roles as $role)
-                <tr>
-                    <td class="px-4 py-2">{{ $role->name }}</td>
-                    <td class="px-4 py-2">{{ $role->description }}</td>
-                    <td class="px-4 py-2">{{ $role->users->count() }}</td>
-                    <td class="px-4 py-2">
-                        <a href="{{ route('roles.show', $role) }}" class="text-blue-600 hover:underline">View</a>
-                        <a href="{{ route('roles.edit', $role) }}" class="text-yellow-600 hover:underline ml-2">Edit</a>
-                        <form action="{{ route('roles.destroy', $role) }}" method="POST" class="inline">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="text-red-600 hover:underline ml-2" onclick="return confirm('Delete this role?')">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-                @endforeach
+                @forelse($roles as $role)
+                    @php($selected = $role->allowedModules())
+                    <tr>
+                        <td>{{ ucfirst(str_replace('_', ' ', $role->name)) }}</td>
+                        <td>{{ $role->description ?: 'No description.' }}</td>
+                        <td>
+                            @forelse($selected as $module)
+                                <span class="chip">{{ $modules[$module]['label'] ?? ucfirst(str_replace('_', ' ', $module)) }}</span>
+                            @empty
+                                <span class="subtle">No modules assigned.</span>
+                            @endforelse
+                        </td>
+                        <td>{{ $role->users->count() }}</td>
+                        <td>
+                            <div class="inline-actions">
+                                <a class="ghost-button" href="{{ route('roles.show', $role) }}">View</a>
+                                <a class="ghost-button" href="{{ route('roles.edit', $role) }}">Edit</a>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5" class="empty-state">No roles found.</td></tr>
+                @endforelse
             </tbody>
         </table>
-        <div class="mt-4">
-            {{ $roles->links() }}
-        </div>
     </div>
+    <div class="pagination-wrap">{{ $roles->links() }}</div>
 </div>
 @endsection

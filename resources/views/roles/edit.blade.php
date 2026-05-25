@@ -1,20 +1,44 @@
 @extends('layouts.app')
 
+@section('title', 'Edit Role')
+@section('page_title', 'Edit Role')
+
+@section('topbar_actions')
+    <a class="ghost-button" href="{{ route('roles.show', $role) }}">Role details</a>
+    <a class="ghost-button" href="{{ route('roles.index') }}">Roles</a>
+@endsection
+
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    <h1 class="text-2xl font-bold mb-4">Edit Role</h1>
-    <form action="{{ route('roles.update', $role) }}" method="POST" class="bg-white shadow rounded-lg p-6 max-w-lg mx-auto">
+<div class="panel">
+    <form method="POST" action="{{ route('roles.update', $role) }}" class="form-grid">
         @csrf
         @method('PUT')
-        <div class="mb-4">
-            <label for="name" class="block font-semibold mb-1">Name</label>
-            <input type="text" name="name" id="name" class="form-control" value="{{ $role->name }}" required>
+        <div class="field">
+            <label for="name">Role Name</label>
+            <input id="name" name="name" value="{{ old('name', $role->name) }}" required>
+            @error('name')<p class="subtle">{{ $message }}</p>@enderror
         </div>
-        <div class="mb-4">
-            <label for="description" class="block font-semibold mb-1">Description</label>
-            <textarea name="description" id="description" class="form-control">{{ $role->description }}</textarea>
+        <div class="field">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="2">{{ old('description', $role->description) }}</textarea>
+            @error('description')<p class="subtle">{{ $message }}</p>@enderror
         </div>
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Update Role</button>
+        <div class="field-span-2">
+            <label>Office Modules</label>
+            <div class="card-grid">
+                @foreach($modules as $key => $module)
+                    <label class="info-card" style="cursor:pointer;">
+                        <input type="checkbox" name="module_access[]" value="{{ $key }}" {{ in_array($key, old('module_access', $selectedModules), true) ? 'checked' : '' }}>
+                        <strong>{{ $module['label'] }}</strong>
+                        <p>{{ $module['description'] }}</p>
+                    </label>
+                @endforeach
+            </div>
+            @error('module_access')<p class="subtle">{{ $message }}</p>@enderror
+        </div>
+        <div>
+            <button class="primary-button" type="submit">Save role access</button>
+        </div>
     </form>
 </div>
 @endsection

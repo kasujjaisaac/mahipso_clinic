@@ -30,6 +30,13 @@ class Patient extends Model
         'status',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'dob' => 'date',
+        ];
+    }
+
     public function branch()
     {
         return $this->belongsTo(Branch::class);
@@ -48,6 +55,21 @@ class Patient extends Model
     public function labTests()
     {
         return $this->hasMany(LabTest::class);
+    }
+
+    public function allergies()
+    {
+        return $this->hasMany(PatientAllergy::class);
+    }
+
+    public function admissions()
+    {
+        return $this->hasMany(Admission::class);
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        return trim(collect([$this->first_name, $this->last_name])->filter()->implode(' '));
     }
 
     protected static function boot()

@@ -97,6 +97,34 @@
             </div>
             @endif
 
+            @if($bill->items && $bill->items->isNotEmpty())
+            <div style="margin-bottom: 2rem;">
+                <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: #374151;">Bill Items</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Qty</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($bill->items as $item)
+                                <tr>
+                                    <td>{{ $item->description }}</td>
+                                    <td>{{ $item->quantity }}</td>
+                                    <td>USh {{ number_format($item->unit_price, 0) }}</td>
+                                    <td>USh {{ number_format($item->total, 0) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
+
             <!-- Action Buttons -->
             <div style="display: flex; gap: 1rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
                 <a href="{{ route('billing.edit', $bill) }}" class="primary-button" style="padding: 0.5rem 1rem;">Edit Bill</a>
@@ -112,9 +140,20 @@
 
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                     @if($bill->status !== 'paid')
-                    <button class="primary-button" style="padding: 0.75rem; text-align: center;" onclick="recordPayment()">
-                        Record Payment
-                    </button>
+                    <form method="POST" action="{{ route('billing.payments.store', $bill) }}" style="display: grid; gap: 0.5rem;">
+                        @csrf
+                        <input type="number" name="amount" min="1" max="{{ $bill->balance }}" step="0.01" placeholder="Amount" required style="padding: 0.65rem; border:1px solid #d1d5db;">
+                        <select name="method" required style="padding: 0.65rem; border:1px solid #d1d5db;">
+                            <option value="cash">Cash</option>
+                            <option value="mobile_money">Mobile money</option>
+                            <option value="bank_transfer">Bank transfer</option>
+                            <option value="card">Card</option>
+                            <option value="insurance">Insurance</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <input type="text" name="reference" placeholder="Reference" style="padding: 0.65rem; border:1px solid #d1d5db;">
+                        <button class="primary-button" type="submit" style="padding: 0.75rem; text-align: center;">Record Payment</button>
+                    </form>
                     @endif
 
                     <button class="ghost-button" style="padding: 0.75rem; text-align: center;" onclick="printBill()">
@@ -180,8 +219,7 @@
 
 <script>
 function recordPayment() {
-    // This would open a modal or redirect to payment recording
-    alert('Payment recording functionality would be implemented here');
+    return true;
 }
 
 function printBill() {

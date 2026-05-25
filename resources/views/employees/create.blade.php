@@ -58,6 +58,15 @@
                 <input id="job_title" name="job_title" value="{{ old('job_title') }}">
             </div>
             <div class="field">
+                <label for="role_name">System Role</label>
+                <select id="role_name" name="role_name">
+                    <option value="">Not assigned</option>
+                    @foreach($roles as $role)
+                        <option value="{{ $role->name }}" {{ old('role_name') === $role->name ? 'selected' : '' }}>{{ ucfirst(str_replace('_', ' ', $role->name)) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="field">
                 <label for="status">Status</label>
                 <select id="status" name="status" required>
                     <option value="active">Active</option>

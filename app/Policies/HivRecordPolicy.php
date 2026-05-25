@@ -9,7 +9,7 @@ class HivRecordPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin','branch_admin','doctor','nurse']);
+        return $user->canAccessAnyModule(['clinic', 'nursing']);
     }
 
     public function view(User $user, HivRecord $hivRecord): bool
@@ -22,7 +22,7 @@ class HivRecordPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin','branch_admin','doctor','nurse']);
+        return $user->canAccessAnyModule(['clinic', 'nursing']);
     }
 
     public function update(User $user, HivRecord $hivRecord): bool
@@ -30,7 +30,7 @@ class HivRecordPolicy
         if ($user->hasRole('super_admin')) {
             return true;
         }
-        return $user->hasRole(['branch_admin','doctor','nurse']) && $user->branch_id === $hivRecord->visit->branch_id;
+        return $user->canAccessAnyModule(['clinic', 'nursing']) && $user->branch_id === $hivRecord->visit->branch_id;
     }
 
     public function delete(User $user, HivRecord $hivRecord): bool

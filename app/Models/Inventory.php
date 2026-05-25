@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use App\Models\User;
 use App\Models\InventoryMovement;
 
@@ -17,6 +18,7 @@ class Inventory extends Model
 
     protected $fillable = [
         'item_name',
+        'branch_id',
         'category',
         'sku',
         'quantity',
@@ -57,6 +59,11 @@ class Inventory extends Model
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
     public function disposedBy()
     {
         return $this->belongsTo(User::class, 'disposed_by');
@@ -86,5 +93,14 @@ class Inventory extends Model
         }
 
         return $query->where('status', $status);
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $query->where('branch_id', $user->branch_id);
     }
 }

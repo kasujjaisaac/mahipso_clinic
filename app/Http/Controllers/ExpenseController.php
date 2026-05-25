@@ -12,6 +12,11 @@ class ExpenseController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware(function ($request, $next) {
+            abort_unless($request->user()->canAccessModule('finance'), 403);
+
+            return $next($request);
+        });
     }
 
     /**
@@ -20,6 +25,10 @@ class ExpenseController extends Controller
     public function index(Request $request)
     {
         $query = Expense::with('branch');
+
+        if (! $request->user()->isSuperAdmin()) {
+            $query->where('branch_id', $request->user()->branch_id);
+        }
 
         // Apply filters
         if ($request->filled('category')) {
@@ -30,7 +39,7 @@ class ExpenseController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('branch_id')) {
+        if ($request->user()->isSuperAdmin() && $request->filled('branch_id')) {
             $query->where('branch_id', $request->branch_id);
         }
 
@@ -43,7 +52,7 @@ class ExpenseController extends Controller
         }
 
         $expenses = $query->orderBy('paid_at', 'desc')->paginate(15);
-        $branches = Branch::all();
+        $branches = $this->availableBranches();
 
         return view('expenses.index', compact('expenses', 'branches'));
     }
@@ -53,7 +62,7 @@ class ExpenseController extends Controller
      */
     public function create()
     {
-        $branches = Branch::all();
+        $branches = $this->availableBranches();
         return view('expenses.create', compact('branches'));
     }
 
@@ -81,6 +90,7 @@ class ExpenseController extends Controller
         ]);
 
         $data = $request->all();
+        $data['branch_id'] = $this->resolvedBranchId((int) $data['branch_id']);
 
         // Handle file upload
         if ($request->hasFile('receipt')) {
@@ -97,6 +107,8 @@ class ExpenseController extends Controller
      */
     public function show(Expense $expense)
     {
+        $this->authorizeBranchAccess($expense);
+
         return view('expenses.show', compact('expense'));
     }
 
@@ -105,7 +117,9 @@ class ExpenseController extends Controller
      */
     public function edit(Expense $expense)
     {
-        $branches = Branch::all();
+        $this->authorizeBranchAccess($expense);
+
+        $branches = $this->availableBranches();
         return view('expenses.edit', compact('expense', 'branches'));
     }
 
@@ -132,7 +146,10 @@ class ExpenseController extends Controller
             'receipt' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
+        $this->authorizeBranchAccess($expense);
+
         $data = $request->all();
+        $data['branch_id'] = $this->resolvedBranchId((int) $data['branch_id']);
 
         // Handle file upload
         if ($request->hasFile('receipt')) {
@@ -153,6 +170,8 @@ class ExpenseController extends Controller
      */
     public function destroy(Expense $expense)
     {
+        $this->authorizeBranchAccess($expense);
+
         // Delete receipt file if exists
         if ($expense->receipt_path) {
             Storage::disk('public')->delete($expense->receipt_path);
@@ -161,5 +180,22 @@ class ExpenseController extends Controller
         $expense->delete();
 
         return redirect()->route('expenses.index')->with('success', 'Expense deleted successfully.');
+    }
+
+    private function availableBranches()
+    {
+        return auth()->user()->isSuperAdmin()
+            ? Branch::active()->orderBy('name')->get()
+            : Branch::whereKey(auth()->user()->branch_id)->get();
+    }
+
+    private function authorizeBranchAccess(Expense $expense): void
+    {
+        abort_unless(auth()->user()->isSuperAdmin() || auth()->user()->branch_id === $expense->branch_id, 404);
+    }
+
+    private function resolvedBranchId(int $branchId): int
+    {
+        return auth()->user()->isSuperAdmin() ? $branchId : auth()->user()->branch_id;
     }
 }

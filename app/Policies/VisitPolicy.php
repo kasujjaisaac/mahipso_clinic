@@ -13,7 +13,7 @@ class VisitPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin','branch_admin','doctor','nurse','receptionist']);
+        return $user->canAccessAnyModule(['front_office', 'clinic', 'nursing']);
     }
 
     public function view(User $user, Visit $visit): bool
@@ -26,7 +26,7 @@ class VisitPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin','branch_admin','doctor','nurse','receptionist']);
+        return $user->canAccessAnyModule(['front_office', 'clinic', 'nursing']);
     }
 
     public function update(User $user, Visit $visit): bool
@@ -34,7 +34,7 @@ class VisitPolicy
         if ($user->hasRole('super_admin')) {
             return true;
         }
-        return $user->hasRole(['branch_admin','doctor','nurse']) && $user->branch_id === $visit->branch_id;
+        return $user->canAccessAnyModule(['front_office', 'clinic', 'nursing']) && $user->branch_id === $visit->branch_id;
     }
 
     public function delete(User $user, Visit $visit): bool

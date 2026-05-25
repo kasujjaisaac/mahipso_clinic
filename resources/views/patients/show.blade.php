@@ -131,6 +131,44 @@
             </div>
 
             <!-- Statistics Cards -->
+            <div class="panel" style="margin-bottom: 2rem;">
+                <div class="panel-header" style="margin-bottom: 1rem;">
+                    <h2 class="section-title" style="font-size: 1.25rem; font-weight: 600; margin: 0;">Allergies</h2>
+                </div>
+                @if($patient->allergies->isNotEmpty())
+                    <div class="table-wrap" style="margin-bottom: 1rem;">
+                        <table>
+                            <thead><tr><th>Substance</th><th>Reaction</th><th>Severity</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach($patient->allergies as $allergy)
+                                    <tr>
+                                        <td>{{ $allergy->substance }}</td>
+                                        <td>{{ $allergy->reaction ?: '-' }}</td>
+                                        <td>{{ ucfirst($allergy->severity) }}</td>
+                                        <td>
+                                            <form method="POST" action="{{ route('patients.allergies.destroy', $allergy) }}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button class="danger-button" type="submit">Remove</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="subtle">No known allergies recorded.</p>
+                @endif
+                <form method="POST" action="{{ route('patients.allergies.store', $patient) }}" class="form-grid">
+                    @csrf
+                    <div><label>Substance</label><input name="substance" placeholder="e.g. Penicillin" required></div>
+                    <div><label>Reaction</label><input name="reaction" placeholder="e.g. rash"></div>
+                    <div><label>Severity</label><select name="severity"><option value="unknown">Unknown</option><option value="mild">Mild</option><option value="moderate">Moderate</option><option value="severe">Severe</option></select></div>
+                    <div><button class="primary-button" type="submit">Add allergy</button></div>
+                </form>
+            </div>
+
             <div class="stats-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
                 <div class="stat-card" style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem;">📋</div>

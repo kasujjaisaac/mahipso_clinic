@@ -13,7 +13,7 @@ class AppointmentPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin','branch_admin','receptionist','doctor']);
+        return $user->canAccessAnyModule(['front_office', 'clinic']);
     }
 
     public function view(User $user, Appointment $appointment): bool
@@ -26,7 +26,7 @@ class AppointmentPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin','branch_admin','receptionist','doctor']);
+        return $user->canAccessAnyModule(['front_office', 'clinic']);
     }
 
     public function update(User $user, Appointment $appointment): bool
@@ -34,7 +34,7 @@ class AppointmentPolicy
         if ($user->hasRole('super_admin')) {
             return true;
         }
-        return $user->hasRole(['branch_admin', 'receptionist', 'doctor'])
+        return $user->canAccessAnyModule(['front_office', 'clinic'])
             && $user->branch_id === $appointment->branch_id;
     }
 

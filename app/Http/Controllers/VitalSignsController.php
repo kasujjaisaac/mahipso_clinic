@@ -10,11 +10,15 @@ class VitalSignsController extends Controller
 {
     public function create(Visit $visit)
     {
+        $this->authorize('update', $visit);
+
         return view('vitals.create', compact('visit'));
     }
 
     public function store(Request $request, Visit $visit)
     {
+        $this->authorize('update', $visit);
+
         $data = $request->validate([
             'weight' => 'nullable|numeric',
             'height' => 'nullable|numeric',
@@ -27,6 +31,11 @@ class VitalSignsController extends Controller
         ]);
         $data['visit_id'] = $visit->id;
         VitalSigns::updateOrCreate(['visit_id' => $visit->id], $data);
+
+        if ($visit->status === 'open') {
+            $visit->moveToStage(Visit::STAGE_CONSULTATION);
+        }
+
         return redirect()->route('visits.show', $visit)->with('success', 'Vital signs recorded.');
     }
 }

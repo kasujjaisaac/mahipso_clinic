@@ -65,7 +65,7 @@
 
                     <div class="field">
                         <label for="dob" style="font-weight: 500; color: #374151; margin-bottom: 0.5rem; display: block;">Date of Birth</label>
-                        <input id="dob" type="date" name="dob" value="{{ old('dob', $patient->dob) }}" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem;">
+                        <input id="dob" type="date" name="dob" value="{{ old('dob', optional($patient->dob)->format('Y-m-d')) }}" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem;">
                         @error('dob')
                             <p style="color: #ef4444; font-size: 0.8rem; margin: 0.25rem 0 0 0;">{{ $message }}</p>
                         @enderror

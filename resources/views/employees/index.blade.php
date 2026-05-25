@@ -18,6 +18,7 @@
                 <th>Emp. No</th>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Role</th>
                 <th>Department</th>
                 <th>Branch</th>
                 <th>Status</th>
@@ -30,6 +31,7 @@
                     <td>{{ $employee->employee_no }}</td>
                     <td>{{ $employee->first_name }} {{ $employee->last_name }}</td>
                     <td>{{ $employee->email }}</td>
+                    <td>{{ $employee->role_name ? ucfirst(str_replace('_', ' ', $employee->role_name)) : '-' }}</td>
                     <td>{{ optional($employee->department)->name }}</td>
                     <td>{{ optional($employee->branch)->name }}</td>
                     <td>{{ ucfirst($employee->status) }}</td>

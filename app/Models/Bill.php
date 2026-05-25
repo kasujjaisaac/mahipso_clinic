@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
 
 class Bill extends Model
@@ -38,6 +39,25 @@ class Bill extends Model
     public function visit()
     {
         return $this->belongsTo(Visit::class);
+    }
+
+    public function items()
+    {
+        return $this->hasMany(BillItem::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(PaymentTransaction::class);
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $query->whereHas('patient', fn ($patientQuery) => $patientQuery->where('branch_id', $user->branch_id));
     }
 
     // Accessor for balance

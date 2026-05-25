@@ -1,40 +1,27 @@
 @extends('layouts.app')
 
+@section('title', 'Reporting')
+@section('page_title', 'Reporting and analytics')
+
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    <h1 class="text-2xl font-bold mb-6">Reporting & Analytics Dashboard</h1>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="panel">
-            <h2 class="section-title mb-2">Financial KPIs</h2>
-            <ul>
-                <li>Total Revenue: <strong>{{ number_format($financial['total_revenue'], 2) }}</strong></li>
-                <li>Total Bills: <strong>{{ $financial['total_bills'] }}</strong></li>
-                <li>Total Payments: <strong>{{ $financial['total_payments'] }}</strong></li>
-            </ul>
-        </div>
-        <div class="panel">
-            <h2 class="section-title mb-2">Clinical KPIs</h2>
-            <ul>
-                <li>Total Patients: <strong>{{ $clinical['total_patients'] }}</strong></li>
-                <li>Total Appointments: <strong>{{ $clinical['total_appointments'] }}</strong></li>
-                <li>Total Lab Tests: <strong>{{ $clinical['total_lab_tests'] }}</strong></li>
-            </ul>
-        </div>
-        <div class="panel">
-            <h2 class="section-title mb-2">Operational KPIs</h2>
-            <ul>
-                <li>Total Employees: <strong>{{ $operational['total_employees'] }}</strong></li>
-                <li>Total Branches: <strong>{{ $operational['total_branches'] }}</strong></li>
-            </ul>
-        </div>
-    </div>
-    <div class="panel">
-        <h2 class="section-title mb-2">Reports</h2>
-        <ul>
-            <li><a href="#" class="text-blue-600 hover:underline">Financial Report</a></li>
-            <li><a href="#" class="text-blue-600 hover:underline">Clinical Report</a></li>
-            <li><a href="#" class="text-blue-600 hover:underline">Operational Report</a></li>
-        </ul>
+<div class="stats-grid">
+    <div class="metric-card"><div class="metric-icon">B</div><div><div class="metric-value">{{ number_format($financial['total_billed'], 0) }}</div><div class="metric-label">Total billed</div></div></div>
+    <div class="metric-card"><div class="metric-icon">P</div><div><div class="metric-value">{{ number_format($financial['total_collected'], 0) }}</div><div class="metric-label">Collected</div></div></div>
+    <div class="metric-card"><div class="metric-icon">O</div><div><div class="metric-value">{{ number_format($financial['outstanding'], 0) }}</div><div class="metric-label">Outstanding</div></div></div>
+    <div class="metric-card"><div class="metric-icon">Pt</div><div><div class="metric-value">{{ $clinical['total_patients'] }}</div><div class="metric-label">Patients</div></div></div>
+    <div class="metric-card"><div class="metric-icon">V</div><div><div class="metric-value">{{ $clinical['open_visits'] }}</div><div class="metric-label">Open visits</div></div></div>
+    <div class="metric-card"><div class="metric-icon">L</div><div><div class="metric-value">{{ $clinical['pending_lab_tests'] }}</div><div class="metric-label">Pending labs</div></div></div>
+    <div class="metric-card"><div class="metric-icon">Rx</div><div><div class="metric-value">{{ $clinical['pending_prescriptions'] }}</div><div class="metric-label">Pending prescriptions</div></div></div>
+    <div class="metric-card"><div class="metric-icon">HR</div><div><div class="metric-value">{{ $operational['attendance_today'] }}</div><div class="metric-label">Attendance today</div></div></div>
+</div>
+
+<div class="panel">
+    <h2 class="section-title">Operational snapshot</h2>
+    <div class="detail-grid">
+        <div class="detail-item"><span class="detail-label">Employees</span><div class="detail-value">{{ $operational['total_employees'] }}</div></div>
+        <div class="detail-item"><span class="detail-label">Branches</span><div class="detail-value">{{ $operational['total_branches'] }}</div></div>
+        <div class="detail-item"><span class="detail-label">Inventory items</span><div class="detail-value">{{ $operational['inventory_items'] }}</div></div>
+        <div class="detail-item"><span class="detail-label">Open purchase orders</span><div class="detail-value">{{ $operational['purchase_orders_open'] }}</div></div>
     </div>
 </div>
 @endsection

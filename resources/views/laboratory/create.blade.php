@@ -1,31 +1,55 @@
 @extends('layouts.app')
 
+@section('title', 'New Lab Order')
+@section('section', 'Laboratory')
+@section('page_title', 'New lab order')
+
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    <h1 class="text-2xl font-bold mb-4">New Laboratory Test</h1>
-    <form action="{{ route('laboratory.store') }}" method="POST" class="bg-white shadow rounded-lg p-6 max-w-lg mx-auto">
+<div class="panel">
+    <form action="{{ route('laboratory.store') }}" method="POST" class="form-grid">
         @csrf
-        <div class="mb-4">
-            <label for="patient_id" class="block font-semibold mb-1">Patient</label>
-            <input type="number" name="patient_id" id="patient_id" class="form-control" value="{{ old('patient_id', request('patient_id')) }}" required>
+        <div>
+            <label>Patient</label>
+            @if(isset($visit))
+                <input type="hidden" name="patient_id" value="{{ $visit->patient_id }}">
+                <input type="text" value="{{ $visit->patient->full_name }}" readonly>
+            @else
+                <select name="patient_id" required>
+                    <option value="">Select patient</option>
+                    @foreach($patients as $patient)
+                        <option value="{{ $patient->id }}">{{ $patient->full_name }} ({{ $patient->mrn }})</option>
+                    @endforeach
+                </select>
+            @endif
         </div>
-        <div class="mb-4">
-            <label for="visit_id" class="block font-semibold mb-1">Visit (optional)</label>
-            <input type="number" name="visit_id" id="visit_id" class="form-control" value="{{ old('visit_id', request('visit_id')) }}">
+        <div>
+            <label>Visit</label>
+            <input type="number" name="visit_id" value="{{ old('visit_id', $visit->id ?? request('visit_id')) }}">
         </div>
-        <div class="mb-4">
-            <label for="test_type" class="block font-semibold mb-1">Test Type</label>
-            <input type="text" name="test_type" id="test_type" class="form-control" required>
+        <div>
+            <label>Test type</label>
+            <input list="lab-services" type="text" name="test_type" required>
+            <datalist id="lab-services">
+                @foreach($services as $service)
+                    <option value="{{ $service->name }}" data-price="{{ $service->price }}"></option>
+                @endforeach
+            </datalist>
         </div>
-        <div class="mb-4">
-            <label for="ordered_at" class="block font-semibold mb-1">Ordered At</label>
-            <input type="date" name="ordered_at" id="ordered_at" class="form-control" value="{{ date('Y-m-d') }}" required>
+        <div>
+            <label>Price</label>
+            <input type="number" name="price" step="0.01" min="0" value="{{ old('price', 0) }}">
         </div>
-        <div class="mb-4">
-            <label for="notes" class="block font-semibold mb-1">Notes</label>
-            <textarea name="notes" id="notes" class="form-control"></textarea>
+        <div>
+            <label>Ordered at</label>
+            <input type="date" name="ordered_at" value="{{ date('Y-m-d') }}" required>
         </div>
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Create Lab Test</button>
+        <div class="field-span-2">
+            <label>Notes</label>
+            <textarea name="notes"></textarea>
+        </div>
+        <div>
+            <button type="submit" class="primary-button">Create lab order</button>
+        </div>
     </form>
 </div>
 @endsection

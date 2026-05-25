@@ -4,25 +4,37 @@ namespace App\Http\Controllers;
 
 use App\Models\Inventory;
 use App\Models\InventoryMovement;
+use App\Models\Branch;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class InventoryController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware(function ($request, $next) {
+            abort_unless($request->user()->canAccessModule('pharmacy'), 403);
+
+            return $next($request);
+        });
+    }
+
     public function index(Request $request)
     {
         $assets = Inventory::search($request->search)
+            ->visibleTo($request->user())
             ->status($request->status)
             ->orderBy('updated_at', 'desc')
             ->paginate(20)
             ->withQueryString();
 
         $totals = [
-            'total' => Inventory::count(),
-            'in_store' => Inventory::where('status', Inventory::STATUS_IN_STORE)->count(),
-            'assigned' => Inventory::where('status', Inventory::STATUS_ASSIGNED)->count(),
-            'disposed' => Inventory::where('status', Inventory::STATUS_DISPOSED)->count(),
+            'total' => Inventory::visibleTo($request->user())->count(),
+            'in_store' => Inventory::visibleTo($request->user())->where('status', Inventory::STATUS_IN_STORE)->count(),
+            'assigned' => Inventory::visibleTo($request->user())->where('status', Inventory::STATUS_ASSIGNED)->count(),
+            'disposed' => Inventory::visibleTo($request->user())->where('status', Inventory::STATUS_DISPOSED)->count(),
         ];
 
         return view('inventory.index', compact('assets', 'totals'));
@@ -30,13 +42,18 @@ class InventoryController extends Controller
 
     public function create()
     {
-        return view('inventory.create');
+        $branches = auth()->user()->isSuperAdmin()
+            ? Branch::active()->orderBy('name')->get()
+            : Branch::whereKey(auth()->user()->branch_id)->get();
+
+        return view('inventory.create', compact('branches'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'item_name' => 'required|string|max:255',
+            'branch_id' => 'nullable|exists:branches,id',
             'category' => 'nullable|string|max:100',
             'sku' => 'nullable|string|max:100',
             'quantity' => 'required|integer|min:0',
@@ -49,6 +66,8 @@ class InventoryController extends Controller
             'reorder_level' => 'nullable|integer|min:0',
             'notes' => 'nullable|string|max:2000',
         ]);
+
+        $validated['branch_id'] = $this->resolvedBranchId($request, $validated['branch_id'] ?? null);
 
         $asset = Inventory::create(array_merge($validated, [
             'status' => Inventory::STATUS_IN_STORE,
@@ -70,25 +89,34 @@ class InventoryController extends Controller
 
     public function show(Inventory $inventory)
     {
+        $this->authorizeBranchAccess($inventory);
+
         $inventory->load(['assignedTo', 'disposedBy', 'movements.user', 'movements.assignedTo']);
-        $users = User::orderBy('name')->get();
+        $users = User::when(! auth()->user()->isSuperAdmin(), fn ($query) => $query->where('branch_id', auth()->user()->branch_id))
+            ->orderBy('name')
+            ->get();
 
         return view('inventory.show', compact('inventory', 'users'));
     }
 
     public function edit(Inventory $inventory)
     {
+        $this->authorizeBranchAccess($inventory);
+
         return view('inventory.edit', compact('inventory'));
     }
 
     public function update(Request $request, Inventory $inventory)
     {
+        $this->authorizeBranchAccess($inventory);
+
         if ($request->filled('action')) {
             return $this->handleAction($request, $inventory);
         }
 
         $validated = $request->validate([
             'item_name' => 'required|string|max:255',
+            'branch_id' => 'nullable|exists:branches,id',
             'category' => 'nullable|string|max:100',
             'sku' => 'nullable|string|max:100',
             'quantity' => 'required|integer|min:0',
@@ -101,6 +129,8 @@ class InventoryController extends Controller
             'reorder_level' => 'nullable|integer|min:0',
             'notes' => 'nullable|string|max:2000',
         ]);
+
+        $validated['branch_id'] = $this->resolvedBranchId($request, $validated['branch_id'] ?? $inventory->branch_id);
 
         $inventory->update($validated);
 
@@ -119,6 +149,8 @@ class InventoryController extends Controller
 
     public function destroy(Inventory $inventory)
     {
+        $this->authorizeBranchAccess($inventory);
+
         $inventory->delete();
 
         return redirect()->route('inventory.index')
@@ -210,5 +242,19 @@ class InventoryController extends Controller
 
         return redirect()->route('inventory.show', $inventory)
             ->withErrors(['action' => 'Unrecognized action.']);
+    }
+
+    protected function authorizeBranchAccess(Inventory $inventory): void
+    {
+        abort_unless(auth()->user()->isSuperAdmin() || auth()->user()->branch_id === $inventory->branch_id, 404);
+    }
+
+    protected function resolvedBranchId(Request $request, ?int $branchId): ?int
+    {
+        if ($request->user()->isSuperAdmin()) {
+            return $branchId;
+        }
+
+        return $request->user()->branch_id;
     }
 }

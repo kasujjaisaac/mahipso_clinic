@@ -9,12 +9,23 @@ use Illuminate\Support\Facades\DB;
 
 class AuditLogController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware(function ($request, $next) {
+            abort_unless($request->user()->canAccessModule('administration'), 403);
+
+            return $next($request);
+        });
+    }
+
     /**
      * Display all audit logs with filtering
      */
     public function index(Request $request)
     {
         $query = AuditLog::with('user');
+        $this->scopeToUserBranch($query, $request);
 
         // Filter by user
         if ($request->filled('user_id')) {
@@ -57,17 +68,23 @@ class AuditLogController extends Controller
         }
 
         // Get distinct values for filter dropdowns
-        $users = User::where('id', '<>', null)->pluck('name', 'id');
-        $actionTypes = AuditLog::distinct()->pluck('action_type')->filter();
-        $modules = AuditLog::distinct()->pluck('module')->filter();
-        $deviceTypes = AuditLog::distinct()->pluck('device_type')->filter();
-        $browsers = AuditLog::distinct()->pluck('browser')->filter();
+        $users = User::when(! $request->user()->isSuperAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branch_id))
+            ->pluck('name', 'id');
+
+        $metadataQuery = AuditLog::query();
+        $this->scopeToUserBranch($metadataQuery, $request);
+        $actionTypes = (clone $metadataQuery)->distinct()->pluck('action_type')->filter();
+        $modules = (clone $metadataQuery)->distinct()->pluck('module')->filter();
+        $deviceTypes = (clone $metadataQuery)->distinct()->pluck('device_type')->filter();
+        $browsers = (clone $metadataQuery)->distinct()->pluck('browser')->filter();
 
         // Get statistics
-        $totalLogins = AuditLog::logins()->count();
-        $successfulLogins = AuditLog::successfulLogins()->count();
-        $failedLogins = AuditLog::failedLogins()->count();
-        $activeSessions = AuditLog::activeSessions()->count();
+        $statsQuery = AuditLog::query();
+        $this->scopeToUserBranch($statsQuery, $request);
+        $totalLogins = (clone $statsQuery)->logins()->count();
+        $successfulLogins = (clone $statsQuery)->successfulLogins()->count();
+        $failedLogins = (clone $statsQuery)->failedLogins()->count();
+        $activeSessions = (clone $statsQuery)->activeSessions()->count();
 
         $logs = $query->latest('created_at')->paginate(50);
 
@@ -91,6 +108,8 @@ class AuditLogController extends Controller
     public function userLoginHistory($userId)
     {
         $user = User::findOrFail($userId);
+        $this->authorizeUserInBranch($user);
+
         $loginHistory = AuditLog::userLoginHistory($userId)
             ->limit(50)
             ->get();
@@ -103,7 +122,10 @@ class AuditLogController extends Controller
      */
     public function activeSessions()
     {
-        $sessions = AuditLog::activeSessions()
+        $query = AuditLog::activeSessions();
+        $this->scopeToUserBranch($query, request());
+
+        $sessions = $query
             ->with('user')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -116,7 +138,10 @@ class AuditLogController extends Controller
      */
     public function suspiciousActivities()
     {
-        $suspiciousActivities = AuditLog::suspiciousActivity()
+        $query = AuditLog::suspiciousActivity();
+        $this->scopeToUserBranch($query, request());
+
+        $suspiciousActivities = $query
             ->orderBy('created_at', 'desc')
             ->paginate(50);
 
@@ -129,6 +154,7 @@ class AuditLogController extends Controller
     public function userActivityReport($userId)
     {
         $user = User::findOrFail($userId);
+        $this->authorizeUserInBranch($user);
 
         // Get activity breakdown
         $activityByModule = AuditLog::where('user_id', $userId)
@@ -171,6 +197,7 @@ class AuditLogController extends Controller
     public function export(Request $request)
     {
         $query = AuditLog::query();
+        $this->scopeToUserBranch($query, $request);
 
         // Apply same filters as index
         if ($request->filled('user_id')) {
@@ -236,5 +263,23 @@ class AuditLogController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    private function scopeToUserBranch($query, Request $request): void
+    {
+        if ($request->user()->isSuperAdmin()) {
+            return;
+        }
+
+        $query->where(function ($branchQuery) use ($request) {
+            $branchQuery
+                ->where('branch_id', $request->user()->branch_id)
+                ->orWhereHas('user', fn ($userQuery) => $userQuery->where('branch_id', $request->user()->branch_id));
+        });
+    }
+
+    private function authorizeUserInBranch(User $user): void
+    {
+        abort_unless(auth()->user()->isSuperAdmin() || auth()->user()->branch_id === $user->branch_id, 404);
     }
 }
